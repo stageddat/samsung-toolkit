@@ -92,11 +92,33 @@
     return null;
   }
 
+  // MPF (CIPA DC-007): the camera appends a 640x480 "screennail" after the main image and indexes
+  // it from an APP2 segment. Its playback uses it, so edited files must keep one or browsing gets slow.
+  function readMpf(bytes, segs) {
+    const s = segs.find((x) => x.marker === 0xE2 && bytes[x.start + 4] === 0x4D && bytes[x.start + 5] === 0x50 &&
+      bytes[x.start + 6] === 0x46 && bytes[x.start + 7] === 0);
+    if (!s) return null;
+    const t = s.start + 8, len = s.end - t;
+    const r = makeReader(bytes, t, len);
+    const ifd = readIfd(r, bytes, t, r.u32(4), len).entries;
+    const e = ifd[0xB002];
+    if (!e || e.count < 32) return null;
+    const n = e.count / 16;
+    const entries = [];
+    for (let k = 0; k < n; k++) {
+      const o = e.valOff + k * 16;
+      entries.push({ attr: r.u32(o), size: r.u32(o + 4), offset: r.u32(o + 8) });
+    }
+    return { seg: s, le: r.le, entryOff: e.valOff, entries, tiffStart: t };
+  }
+
   // Parse everything we care about. Offsets are relative to the TIFF header.
   function read(bytes) {
     const info = { hasExif: false, dates: {}, date: null, model: '', orientation: 1, thumb: null, fields: {} };
     const segs = segments(bytes);
     info.segments = segs;
+    info.mpf = readMpf(bytes, segs);
+    info.appSegs = segs.filter((s) => s.marker === 0xEF);   // Samsung's private APP15 block
     const app1 = segs.find((s) => isExifSeg(bytes, s));
     if (!app1) return info;
     const t = app1.start + 10, tiffLen = app1.end - t;
@@ -227,15 +249,44 @@
 
   // Put the original (patched) metadata into a freshly encoded JPEG from a canvas.
   // The new JPEG's own APP0/APP1 are dropped; MPF previews of the old picture are not carried over.
+  // JPEG without SOI/APP0/APP1: from the first table segment to EOI.
+  function jpegBody(jpeg) {
+    const firstKeep = segments(jpeg).find((s) => !(s.marker === 0xE0 || s.marker === 0xE1));
+    return jpeg.subarray(firstKeep ? firstKeep.start : 2);
+  }
+
   function transplant(newJpeg, origBytes, info, opts) {
-    const segs = segments(newJpeg);
-    const firstKeep = segs.find((s) => !(s.marker === 0xE0 || s.marker === 0xE1));
-    const body = newJpeg.subarray(firstKeep ? firstKeep.start : 2);
+    const SOI = new Uint8Array([0xFF, 0xD8]);
+    const body = jpegBody(newJpeg);
     let app1;
     if (info.hasExif) app1 = wrapApp1(patchedTiff(origBytes, info, opts));
     else if (opts.date != null) app1 = minimalApp1(formatExifDate(opts.date));
     else app1 = new Uint8Array(0);
-    return concat([new Uint8Array([0xFF, 0xD8]), app1, body]);
+
+    // Rebuild the camera layout (MPF index + Samsung block + screennail) when the original had it.
+    const mpf = info.mpf;
+    if (mpf && mpf.entries.length === 2 && opts.screennail) {
+      const sn0 = mpf.tiffStart + mpf.entries[1].offset;
+      let snApp1 = new Uint8Array(0);
+      if (sn0 > 0 && sn0 < origBytes.length - 4) {
+        try {
+          const s = segments(origBytes.subarray(sn0)).find((x) => x.marker === 0xE1);
+          if (s) snApp1 = origBytes.subarray(sn0 + s.start, sn0 + s.end);
+        } catch (e) { /* no usable header in the old screennail */ }
+      }
+      const sn = concat([SOI, snApp1, jpegBody(opts.screennail)]);
+      const app2 = origBytes.slice(mpf.seg.start, mpf.seg.end);
+      const appf = info.appSegs.map((s) => origBytes.subarray(s.start, s.end));
+      const main = concat([SOI, app1, app2, ...appf, body]);
+      const tNew = 2 + app1.length + 8;
+      const dv = new DataView(main.buffer, main.byteOffset, main.length);
+      const ent = tNew + mpf.entryOff;
+      dv.setUint32(ent + 4, main.length, mpf.le);              // image 1: size
+      dv.setUint32(ent + 16 + 4, sn.length, mpf.le);           // image 2: size
+      dv.setUint32(ent + 16 + 8, main.length - tNew, mpf.le);  // image 2: offset from MPF header
+      return concat([main, sn]);
+    }
+    return concat([SOI, app1, body]);
   }
 
   window.Exif = { read, thumbnailBlob, rewriteDatesOnly, transplant, parseExifDate, formatExifDate, naiveFromLocal };

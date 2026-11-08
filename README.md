@@ -62,7 +62,7 @@ Typical fix for a camera with a wrong clock:
 
 ## How it works
 
-- `js/exif.js`: a tiny JPEG/EXIF parser and writer. Instead of rebuilding metadata, it patches the original APP1 segment in place (dates are fixed-length strings), then transplants it into the newly encoded JPEG. That keeps camera-specific data intact.
+- `js/exif.js`: a tiny JPEG/EXIF parser and writer. Instead of rebuilding metadata, it patches the original APP1 segment in place (dates are fixed-length strings), then transplants it into the newly encoded JPEG. That keeps camera-specific data intact. It also rebuilds the camera's file layout: an MPF index (APP2), Samsung's private APP15 block and a fresh 640×480 "screennail" appended after the main image. The camera's playback relies on that preview; without it, browsing edited photos on the camera becomes very slow.
 - `js/stamp.js`: draws the stamp from the glyph bitmaps in `font.js`, scaled from the camera's 4000×3000 frame. Detection looks for the stamp's yellow ink wrapped in its dark olive outline at the known position. Removal masks the whole stamp, then fills it outside-in from real background pixels (a simplified Telea inpaint), so neighbouring letters don't bleed into the fill.
 - `js/adjust.js`: tone adjustments via a lookup table (monotone cubic curves, levels, gamma, contrast, fade), plus saturation, warmth and a cheap bilateral-style denoiser.
 - `font.js`: the stamp font: per-glyph advance widths plus bit-packed fill and outline masks. It was built with `tools/build_font.py`, which averages every occurrence of each character across real stamped photos (using their EXIF date to know which character is where) and drops pieces of neighbouring glyphs.

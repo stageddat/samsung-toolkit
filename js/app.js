@@ -382,8 +382,19 @@
       t.width = Math.round(canvas.width * k); t.height = Math.round(canvas.height * k);
       t.getContext('2d').drawImage(canvas, 0, 0, t.width, t.height);
       const thumb = await canvasBytes(t, 0.85);
+      // 640x480 playback preview, so the camera can browse the edited photo quickly
+      let screennail = null;
+      if (info.mpf) {
+        const sc = document.createElement('canvas');
+        const ks = 640 / Math.max(canvas.width, canvas.height);
+        sc.width = Math.round(canvas.width * ks); sc.height = Math.round(canvas.height * ks);
+        const sctx = sc.getContext('2d');
+        sctx.imageSmoothingQuality = 'high';
+        sctx.drawImage(canvas, 0, 0, sc.width, sc.height);
+        screennail = await canvasBytes(sc, 0.9);
+      }
       const data = Exif.transplant(jpeg, bytes, info, {
-        date: dateChanged || info.date == null ? d : null, width: canvas.width, height: canvas.height, resetOrientation: true, thumb,
+        date: dateChanged || info.date == null ? d : null, width: canvas.width, height: canvas.height, resetOrientation: true, thumb, screennail,
       });
       return { data, date: d, lossless: false };
     } finally {
