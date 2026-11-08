@@ -6,6 +6,14 @@ It was born from a real problem: the camera's clock got reset, every photo for w
 
 Everything runs in your browser. Photos never leave your computer.
 
+**▶ Try it: [stageddat.github.io/samsung-toolkit](https://stageddat.github.io/samsung-toolkit/)**
+
+![Walkthrough: load a photo, set the real date, replace the stamp, rescue a dark shot](docs/demo.gif)
+
+![Before and after: wrong burned-in date and dark exposure, fixed](docs/before-after.jpg)
+
+<sub>The demo picture is synthetic (generated for this README), stamped with the app itself.</sub>
+
 > **Vibe coded.** This project was written by [Claude](https://claude.com/claude-code) (Anthropic's AI) in a single conversation, guided and tested on real photos by its owner. Read the code before trusting it with your only copy of anything, and keep backups.
 
 ## Features
@@ -36,7 +44,7 @@ Everything runs in your browser. Photos never leave your computer.
 
 ## Usage
 
-No build step, no server, no install.
+Use the [hosted version](https://stageddat.github.io/samsung-toolkit/) (still 100% local: the page is static and processes photos in your browser), or run it from a clone. No build step, no server, no install.
 
 ```sh
 git clone https://github.com/stageddat/samsung-toolkit.git
@@ -81,3 +89,11 @@ Then wrap the JSON as `window.STAMP_FONT = {...};` in `font.js`. The script assu
 ## Privacy
 
 There is no network access at runtime: no analytics, no uploads, no external requests. Open the browser's network tab and check for yourself.
+
+## License
+
+[GNU AGPL-3.0](LICENSE). You can use, study, change and share it; if you distribute it or run a modified version as a service, you must publish your source under the same license.
+
+Bundled: [JSZip](https://github.com/Stuk/jszip) 3.10.1 (MIT or GPLv3), in `vendor/`.
+
+A note on AI-written code: copyright in purely machine-generated material is legally unsettled (in some jurisdictions it may not be protectable at all). The license covers whatever parts of this project are protectable, including the human direction, selection and testing that went into it.
