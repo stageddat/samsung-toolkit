@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ES70 Toolkit</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">ES70</span> Toolkit</div>
+    <div class="top-actions">
+      <label class="btn">Add photos<input id="pickFiles" type="file" accept="image/jpeg,.jpg,.jpeg" multiple hidden></label>
+      <label class="btn">Add folder<input id="pickFolder" type="file" webkitdirectory hidden></label>
+      <button class="btn ghost" id="selAll" disabled>Select all</button>
+      <button class="btn ghost" id="selNone" disabled>Select none</button>
+      <button class="btn ghost" id="clearAll" disabled>Clear</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- photo list -->
+    <section class="library" id="library">
+      <div class="lib-head"><span id="libCount">No photos</span><span id="libSel"></span></div>
+      <div class="grid" id="grid"></div>
+      <div class="drop-hint" id="dropHint">
+        <p><strong>Drop photos or a folder here</strong></p>
+        <p>JPEGs from the camera (DCIM/…PHOTO). Everything stays on this computer.</p>
+      </div>
+    </section>
+
+    <!-- preview -->
+    <section class="viewer">
+      <div class="stage" id="stage">
+        <canvas id="preview"></canvas>
+        <div class="stage-empty" id="stageEmpty">No photo selected</div>
+        <div class="busy" id="busy" hidden><div class="spinner"></div></div>
+      </div>
+      <div class="viewer-bar">
+        <div class="seg" role="group" aria-label="View">
+          <button class="seg-btn on" data-view="fit">Whole photo</button>
+          <button class="seg-btn" data-view="stamp">Stamp close-up</button>
+        </div>
+        <button class="btn ghost" id="compare" title="Hold to see the original (or hold the C key)">Hold to compare</button>
+        <div class="meta" id="meta"></div>
+      </div>
+    </section>
+
+    <!-- tools -->
+    <aside class="tools">
+      <details open>
+        <summary>Date &amp; time <small>(metadata)</small></summary>
+        <div class="field radios" id="dateMode">
+          <label><input type="radio" name="dateMode" value="keep" checked> Keep</label>
+          <label><input type="radio" name="dateMode" value="shift"> Shift by</label>
+          <label><input type="radio" name="dateMode" value="set"> Set this photo to…</label>
+        </div>
+        <div class="field row3" id="shiftBox" hidden>
+          <label>Days<input type="number" id="shDays" value="0" step="1"></label>
+          <label>Hours<input type="number" id="shHours" value="0" step="1"></label>
+          <label>Minutes<input type="number" id="shMin" value="0" step="1"></label>
+        </div>
+        <div class="field" id="setBox" hidden>
+          <input type="datetime-local" id="setDate" step="1">
+          <p class="hint" id="setHint"></p>
+        </div>
+        <p class="hint">The same offset is applied to every selected photo. Fixing only the date is lossless: the image itself is not re-saved.</p>
+      </details>
+
+      <details open>
+        <summary>Date stamp</summary>
+        <div class="field">
+          <label>Action
+            <select id="stAction">
+              <option value="keep">Leave as is</option>
+              <option value="add">Add stamp</option>
+              <option value="replace">Replace existing stamp</option>
+              <option value="remove">Remove existing stamp</option>
+            </select>
+          </label>
+        </div>
+        <div id="stOpts">
+          <div class="field row2">
+            <label>Format
+              <select id="stFormat">
+                <option value="DMY">DD/MM/YYYY</option>
+                <option value="YMD">YYYY/MM/DD</option>
+                <option value="MDY">MM/DD/YYYY</option>
+              </select>
+            </label>
+            <label>Show
+              <select id="stContent">
+                <option value="datetime">Date + time</option>
+                <option value="date">Date only</option>
+              </select>
+            </label>
+          </div>
+          <div class="field row2">
+            <label>Clock
+              <select id="stClock">
+                <option value="12">12 h (AM/PM)</option>
+                <option value="24">24 h</option>
+              </select>
+            </label>
+            <label>Position
+              <select id="stPos">
+                <option value="camera">Like the camera</option>
+                <option value="br">Bottom right</option>
+                <option value="bl">Bottom left</option>
+                <option value="tr">Top right</option>
+                <option value="tl">Top left</option>
+              </select>
+            </label>
+          </div>
+          <div class="field">
+            <label class="slider">Size <output id="stSizeOut">100%</output>
+              <input type="range" id="stSize" min="40" max="200" step="5" value="100">
+            </label>
+          </div>
+        </div>
+        <p class="hint" id="stHint">Uses the camera's own digits, taken from real ES70 photos. Removing a stamp rebuilds the background from its surroundings: it looks best on plain areas.</p>
+      </details>
+
+      <details open>
+        <summary>Adjustments</summary>
+        <div class="chips" id="presets"></div>
+        <div class="field">
+          <label class="slider">Exposure <output data-for="exposure"></output><input type="range" data-adj="exposure" min="-2" max="2" step="0.1"></label>
+          <label class="slider">Brightness <output data-for="brightness"></output><input type="range" data-adj="brightness" min="-80" max="80" step="1"></label>
+          <label class="slider">Contrast <output data-for="contrast"></output><input type="range" data-adj="contrast" min="-60" max="60" step="1"></label>
+          <label class="slider">Shadows <output data-for="gamma"></output><input type="range" data-adj="gamma" min="0.5" max="2.5" step="0.05"></label>
+          <label class="slider">Saturation <output data-for="saturation"></output><input type="range" data-adj="saturation" min="0" max="2" step="0.05"></label>
+          <label class="slider">Warmth <output data-for="warmth"></output><input type="range" data-adj="warmth" min="-40" max="40" step="1"></label>
+          <label class="slider">Fade <output data-for="fade"></output><input type="range" data-adj="fade" min="0" max="60" step="1"></label>
+          <label class="slider">Noise reduction <output data-for="denoise"></output><input type="range" data-adj="denoise" min="0" max="3" step="1"></label>
+        </div>
+        <div class="field row2">
+          <label>Tone curve
+            <select data-adj="curve">
+              <option value="none">None</option>
+              <option value="night">Dark party rescue</option>
+              <option value="lift">Lift shadows</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" data-adj="autoLevels"> Auto levels</label>
+        </div>
+        <button class="btn ghost small" id="adjReset">Reset adjustments</button>
+      </details>
+
+      <details open>
+        <summary>Output</summary>
+        <div class="field row2">
+          <label>Size
+            <select id="outSize">
+              <option value="orig">Original</option>
+              <option value="4000">12M · 4000×3000</option>
+              <option value="2560">5M · 2560×1920</option>
+              <option value="2048">3M · 2048×1536</option>
+              <option value="1024">1M · 1024×768</option>
+            </select>
+          </label>
+          <label>Rotate
+            <span class="rot">
+              <button class="btn ghost small" id="rotL" title="Rotate left">⟲</button>
+              <output id="rotOut">0°</output>
+              <button class="btn ghost small" id="rotR" title="Rotate right">⟳</button>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="slider">JPEG quality <output id="qOut">92</output><input type="range" id="outQ" min="70" max="100" step="1" value="92"></label>
+        </div>
+        <div class="field">
+          <label>File names
+            <select id="outName">
+              <option value="same">Same as original</option>
+              <option value="suffix">Add “_edit”</option>
+            </select>
+          </label>
+        </div>
+        <label class="check" id="dirWrap" hidden><input type="checkbox" id="useDir"> Save straight into a folder (instead of a ZIP)</label>
+        <p class="hint" id="outHint"></p>
+      </details>
+
+      <div class="export">
+        <button class="btn primary" id="saveOne" disabled>Save this photo</button>
+        <button class="btn primary" id="saveSel" disabled>Save selected</button>
+      </div>
+    </aside>
+  </main>
+
+  <div class="progress" id="progress" hidden>
+    <div class="progress-card">
+      <p id="progText">Working…</p>
+      <div class="bar"><div id="progBar"></div></div>
+      <button class="btn ghost small" id="progCancel">Cancel</button>
+    </div>
+  </div>
+
+  <script src="vendor/jszip.min.js"></script>
+  <script src="font.js"></script>
+  <script src="js/exif.js"></script>
+  <script src="js/stamp.js"></script>
+  <script src="js/adjust.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
